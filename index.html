@@ -441,7 +441,7 @@
             });
         }
 
-        const client = new Paho.MQTT.Client("broker.emqx.io", Number(8083), "web_dashboard_" + Math.random().toString(16).substr(2, 8));
+        const client = new Paho.MQTT.Client("wss://broker.emqx.io:8084/mqtt", "web_dashboard_" + Math.random().toString(16).substr(2, 8));
         client.onConnectionLost = () => { 
             document.getElementById("connection-status").className = "px-4 py-1.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-400/40 animate-pulse";
             document.getElementById("connection-status").innerText = "🔴 Disconnected (Retrying...)";
