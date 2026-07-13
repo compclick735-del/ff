@@ -89,7 +89,7 @@
             </div>
             <div class="mt-4 md:mt-0 flex items-center space-x-3">
                 <span id="location-status" class="px-4 py-1.5 rounded-full text-xs font-bold bg-indigo-950/60 border border-cyan-500/30 text-cyan-400 shadow-[0_0_15px_rgba(0,242,254,0.1)]">📍 กำลังดาวน์โหลดพิกัดดาวเทียม...</span>
-                <span id="connection-status" class="px-4 py-1.5 rounded-full text-xs font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-400/40 animate-pulse">🟢 Connected Online</span>
+                <span id="connection-status" class="px-4 py-1.5 rounded-full text-xs font-bold bg-yellow-500/20 text-yellow-400 border border-yellow-400/40 animate-pulse">🟡 Connecting...</span>
             </div>
         </div>
     </header>
@@ -441,12 +441,20 @@
             });
         }
 
-        const client = new Paho.MQTT.Client("wss://broker.emqx.io:8084/mqtt", "web_dashboard_" + Math.random().toString(16).substr(2, 8));
-        client.onConnectionLost = () => { 
+        // แก้ไขโครงสร้าง Constructor แยก Parameter (Host, Port, Path, ClientID) เพื่อให้ Paho ทำงานสมบูรณ์
+        const client = new Paho.MQTT.Client(
+            "broker.emqx.io", 
+            8084, 
+            "/mqtt", 
+            "web_dashboard_" + Math.random().toString(16).substr(2, 8)
+        );
+
+        client.onConnectionLost = (responseObject) => { 
             document.getElementById("connection-status").className = "px-4 py-1.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-400/40 animate-pulse";
             document.getElementById("connection-status").innerText = "🔴 Disconnected (Retrying...)";
             setTimeout(connectMQTT, 3000); 
         };
+
         client.onMessageArrived = (message) => {
             try {
                 const data = JSON.parse(message.payloadString);
@@ -474,16 +482,17 @@
         };
 
         function connectMQTT() {
-            // ปรับออปชันการเชื่อมต่อให้รองรับระบบความปลอดภัย SSL สำหรับใช้งานบน GitHub Pages
             client.connect({
                 useSSL: true, // บังคับใช้งานโปรโตคอลการเข้ารหัสความปลอดภัยระดับ WSS (WebSockets Secure)
+                timeout: 5,
+                keepAliveInterval: 60,
                 onSuccess: () => { 
                     document.getElementById("connection-status").className = "px-4 py-1.5 rounded-full text-xs font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-400/40";
                     document.getElementById("connection-status").innerText = "🟢 Connected Online";
                     client.subscribe("pollution/env/predicted"); 
                     setupMouseControl(); 
                 },
-                onFailure: () => { 
+                onFailure: (invocationContext) => { 
                     document.getElementById("connection-status").className = "px-4 py-1.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-400/40 animate-pulse";
                     document.getElementById("connection-status").innerText = "🔴 Connection Failed (Retrying...)";
                     setTimeout(connectMQTT, 5000); 
